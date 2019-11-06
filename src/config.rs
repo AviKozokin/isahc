@@ -66,6 +66,8 @@ pub struct CACertificatePath {
 impl SetOpt for CACertificatePath {
     fn set_opt<H>(&self, easy: &mut curl::easy::Easy2<H>) -> Result<(), curl::Error> {
         easy.cainfo(self.path.clone())?;
+
+        // For Windows.
         easy.ssl_options(SslOpt::new().no_revoke(true))?;
 
         Ok(())

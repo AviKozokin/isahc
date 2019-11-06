@@ -809,6 +809,8 @@ impl HttpClient {
                 ClientCertificate,
                 AllowUnsafeSsl,
                 CloseConnection,
+                CACertificatePath,
+                NoProxy,
             ]
         );
 
