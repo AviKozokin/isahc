@@ -22,6 +22,7 @@ use std::{
     task::{Context, Poll},
     time::Duration,
 };
+use std::path::PathBuf;
 
 lazy_static! {
     static ref USER_AGENT: String = format!(
@@ -290,6 +291,27 @@ impl HttpClientBuilder {
     /// The default is unset and will result in the system defaults being used.
     pub fn ssl_ciphers(mut self, servers: impl IntoIterator<Item = String>) -> Self {
         self.defaults.insert(SslCiphers::from_iter(servers));
+        self
+    }
+
+    /// Set a custom SSL/TLS CA certificate to use for all client
+    /// connections.
+    ///
+    /// The default value is none.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use isahc::config::*;
+    /// # use isahc::prelude::*;
+    /// #
+    /// let client = HttpClient::builder()
+    ///     .ca_certificate("ca.pem".into())
+    ///     .build()?;
+    /// # Ok::<(), isahc::Error>(())
+    /// ```
+    pub fn ca_certificate(mut self, ca_path: PathBuf) -> Self {
+        self.defaults.insert(CACertificatePath { path: ca_path });
         self
     }
 

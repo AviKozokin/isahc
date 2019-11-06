@@ -55,6 +55,21 @@ impl SetOpt for RedirectPolicy {
     }
 }
 
+/// A public CA certificate(s) file.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CACertificatePath {
+    /// Path to the certificate file.
+    pub path: PathBuf,
+}
+
+impl SetOpt for CACertificatePath {
+    fn set_opt<H>(&self, easy: &mut curl::easy::Easy2<H>) -> Result<(), curl::Error> {
+        easy.cainfo(self.path.clone())?;
+
+        Ok(())
+    }
+}
+
 /// A public key certificate file.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ClientCertificate {
