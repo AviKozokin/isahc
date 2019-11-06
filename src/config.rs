@@ -7,6 +7,7 @@ use std::iter::FromIterator;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::time::Duration;
+use curl::easy::SslOpt;
 
 /// A helper trait for applying a configuration value to a given curl handle.
 pub(crate) trait SetOpt {
@@ -65,6 +66,7 @@ pub struct CACertificatePath {
 impl SetOpt for CACertificatePath {
     fn set_opt<H>(&self, easy: &mut curl::easy::Easy2<H>) -> Result<(), curl::Error> {
         easy.cainfo(self.path.clone())?;
+        easy.ssl_options(SslOpt::new().no_revoke(true))?;
 
         Ok(())
     }
@@ -334,6 +336,17 @@ pub(crate) struct Proxy(pub(crate) http::Uri);
 impl SetOpt for Proxy {
     fn set_opt<H>(&self, easy: &mut curl::easy::Easy2<H>) -> Result<(), curl::Error> {
         easy.proxy(&format!("{}", self.0))
+    }
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct NoProxy(pub(crate) Vec<String>);
+
+impl SetOpt for NoProxy {
+    fn set_opt<H>(&self, easy: &mut curl::easy::Easy2<H>) -> Result<(), curl::Error> {
+        let skip = self.0.join(",");
+
+        easy.noproxy(&skip)
     }
 }
 

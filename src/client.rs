@@ -219,6 +219,12 @@ impl HttpClientBuilder {
         self
     }
 
+    /// Disable proxy usage to use for the provided list of hosts.
+    pub fn noproxy(mut self, skip: Option<Vec<String>>) -> Self {
+        self.defaults.insert(NoProxy(skip.unwrap_or_else(|| vec!["*".to_string()])));
+        self
+    }
+
     /// Set a maximum upload speed for the request body, in bytes per second.
     ///
     /// The default is unlimited.
