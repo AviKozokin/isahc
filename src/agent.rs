@@ -9,17 +9,19 @@
 //! a specialized task executor for tasks related to requests.
 
 use crate::handler::RequestHandler;
-use crate::task::{UdpWaker, WakerExt};
+use crate::task::{Waker, WakerExt};
 use crate::Error;
 use crossbeam_channel::{Receiver, Sender};
 use crossbeam_utils::sync::WaitGroup;
 use curl::multi::WaitFd;
 use slab::Slab;
-use std::net::UdpSocket;
+use std::net::{UdpSocket, SocketAddr, TcpListener, Shutdown};
 use std::sync::{Arc, Mutex};
 use std::task::Waker;
 use std::thread;
 use std::time::{Duration, Instant};
+use std::convert::TryFrom;
+use std::io::Read;
 
 const AGENT_THREAD_NAME: &str = "curl agent";
 const WAIT_TIMEOUT: Duration = Duration::from_millis(100);
@@ -56,13 +58,12 @@ impl AgentBuilder {
     pub(crate) fn spawn(&self) -> Result<Handle, Error> {
         let create_start = Instant::now();
 
-        // Create an UDP socket for the agent thread to listen for wakeups on.
-        let wake_socket = UdpSocket::bind("127.0.0.1:0")?;
+        // Create an TCP socket for the agent thread to listen for wakeups on.
+        let wake_socket = TcpListener::bind("127.0.0.1:0")?;
         wake_socket.set_nonblocking(true)?;
         let wake_addr = wake_socket.local_addr()?;
-        let waker = futures_util::task::waker(Arc::new(UdpWaker::connect(wake_addr)?));
+        let waker = futures_util::task::waker(Arc::new(Waker::connect(wake_addr)?));
         log::debug!("agent waker listening on {}", wake_addr);
-
         let (message_tx, message_rx) = crossbeam_channel::unbounded();
 
         let wait_group = WaitGroup::new();
@@ -71,7 +72,6 @@ impl AgentBuilder {
         let max_connections = self.max_connections;
         let max_connections_per_host = self.max_connections_per_host;
         let connection_cache_size = self.connection_cache_size;
-
         let handle = Handle {
             message_tx: message_tx.clone(),
             waker: waker.clone(),
@@ -158,7 +158,7 @@ struct AgentContext {
     message_rx: Receiver<Message>,
 
     /// Used to wake up the agent when polling.
-    wake_socket: UdpSocket,
+    wake_socket: TcpListener,
 
     /// Contains all of the active requests.
     requests: Slab<curl::multi::Easy2Handle<RequestHandler>>,
@@ -467,7 +467,12 @@ impl AgentContext {
                 // it's possible that there's a lot of data in the buffer, it
                 // is unlikely, so we do just one read. At worst case, the next
                 // wait call returns immediately.
-                let _ = self.wake_socket.recv_from(&mut wait_fd_buf);
+                match self.wake_socket.accept(){
+                    Ok((mut stream, _addr)) =>{
+                        let _ = stream.read(&mut wait_fd_buf).expect("read from socket failed!");
+                    },
+                    Err(e) => {}
+                }
             }
         }
 

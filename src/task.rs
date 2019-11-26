@@ -3,11 +3,11 @@
 use crate::Error;
 use futures_util::{pin_mut, task::ArcWake};
 use std::future::Future;
-use std::net::{SocketAddr, UdpSocket};
+use std::net::{SocketAddr, UdpSocket, TcpListener, TcpStream};
 use std::sync::Arc;
 use std::task::{Context, Poll, Waker};
 use std::thread::{self, Thread};
-
+use std::io::Write;
 /// Extension trait for efficiently blocking on a future.
 pub(crate) trait Join: Future {
     fn join(self) -> <Self as Future>::Output;
@@ -64,32 +64,33 @@ impl WakerExt for Waker {
     }
 }
 
-/// A waker that sends a signal to an UDP socket.
+/// A waker that sends a signal to an TCP socket Listener.
 ///
 /// This kind of waker is used to wake up agent threads while they are polling.
 /// Each agent listens on a unique loopback address, which is chosen randomly
 /// when the agent is created.
-pub(crate) struct UdpWaker {
-    socket: UdpSocket,
+pub(crate) struct Waker {
+    socket: TcpStream,
 }
 
-impl UdpWaker {
-    /// Create a waker by connecting to the wake address of an UDP server.
+impl Waker {
+    /// Create a waker by connecting to the wake address of a TCP Listener (server).
     pub(crate) fn connect(addr: SocketAddr) -> Result<Self, Error> {
-        let socket = UdpSocket::bind("127.0.0.1:0")?;
-        socket.connect(addr)?;
+        let socket = TcpStream::connect(addr).expect("Could not connect to tcpStream");
+        //socket.connect(addr)?;
 
         Ok(Self { socket })
     }
 }
 
-impl ArcWake for UdpWaker {
+impl ArcWake for Waker {
     /// Request the connected agent event loop to wake up. Just like a morning
     /// person would do.
     fn wake_by_ref(arc_self: &Arc<Self>) {
         // We don't actually care here if this succeeds. Maybe the agent is
         // busy, or tired, or just needs some alone time right now.
-        if let Err(e) = arc_self.socket.send(&[1]) {
+        let mut sock = arc_self.socket.try_clone().expect("Could not clone waker socket");//todo what if this fails?
+        if let Err(e) = sock.write(&[1]) {
             log::debug!("agent waker produced an error: {}", e);
         }
     }
