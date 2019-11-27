@@ -9,7 +9,7 @@
 //! a specialized task executor for tasks related to requests.
 
 use crate::handler::RequestHandler;
-use crate::task::{Waker, WakerExt};
+use crate::task::{WakerExt, AgentWaker};
 use crate::Error;
 use crossbeam_channel::{Receiver, Sender};
 use crossbeam_utils::sync::WaitGroup;
@@ -62,7 +62,7 @@ impl AgentBuilder {
         let wake_socket = TcpListener::bind("127.0.0.1:0")?;
         wake_socket.set_nonblocking(true)?;
         let wake_addr = wake_socket.local_addr()?;
-        let waker = futures_util::task::waker(Arc::new(Waker::connect(wake_addr)?));
+        let waker = futures_util::task::waker(Arc::new(AgentWaker::connect(wake_addr)?));
         log::debug!("agent waker listening on {}", wake_addr);
         let (message_tx, message_rx) = crossbeam_channel::unbounded();
 

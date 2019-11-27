@@ -69,11 +69,11 @@ impl WakerExt for Waker {
 /// This kind of waker is used to wake up agent threads while they are polling.
 /// Each agent listens on a unique loopback address, which is chosen randomly
 /// when the agent is created.
-pub(crate) struct Waker {
+pub(crate) struct AgentWaker {
     socket: TcpStream,
 }
 
-impl Waker {
+impl AgentWaker {
     /// Create a waker by connecting to the wake address of a TCP Listener (server).
     pub(crate) fn connect(addr: SocketAddr) -> Result<Self, Error> {
         let socket = TcpStream::connect(addr).expect("Could not connect to tcpStream");
@@ -83,7 +83,7 @@ impl Waker {
     }
 }
 
-impl ArcWake for Waker {
+impl ArcWake for AgentWaker {
     /// Request the connected agent event loop to wake up. Just like a morning
     /// person would do.
     fn wake_by_ref(arc_self: &Arc<Self>) {
