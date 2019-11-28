@@ -470,6 +470,7 @@ impl AgentContext {
                 match self.wake_socket.accept(){
                     Ok((mut stream, _addr)) =>{
                         let _ = stream.read(&mut wait_fd_buf).expect("read from socket failed!");
+                        stream.shutdown(Shutdown::Both);
                     },
                     Err(e) => {}
                 }
